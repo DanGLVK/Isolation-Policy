@@ -1,0 +1,11 @@
+-keep class io.github.mhmrdd.isolationpolicy.Entry { *; }
+-keep class io.github.mhmrdd.isolationpolicy.Constants { *; }
+-keep class io.github.mhmrdd.isolationpolicy.ModuleStatus { *; }
+-keep class io.github.mhmrdd.isolationpolicy.AppZygote { *; }
+-keep class io.github.mhmrdd.isolationpolicy.IsolationPolicyService { *; }
+-keep class io.github.mhmrdd.isolationpolicy.IIsolationPolicyService { *; }
+-keep class io.github.mhmrdd.isolationpolicy.IIsolationPolicyService$* { *; }
+
+-repackageclasses "isolationpolicy"
+-allowaccessmodification
+-overloadaggressively
