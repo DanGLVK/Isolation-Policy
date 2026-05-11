@@ -13,6 +13,9 @@ public class BindHook {
     private static final String HOSTING_RECORD = "com.android.server.am.HostingRecord";
     private static final String PROCESS_RECORD = "com.android.server.am.ProcessRecord";
 
+    // mHostingZygote == 2 means app zygote; Samsung removed usesAppZygote() but kept the field.
+    private static final int HOSTING_ZYGOTE_APP = 2;
+
     private static final XSharedPreferences sPrefs =
             new XSharedPreferences(Constants.APPLICATION_ID, Constants.PREFS_NAME);
 
@@ -40,13 +43,7 @@ public class BindHook {
                     }
                     if (hr == null || pr == null) return;
 
-                    Object usesAppZygote;
-                    try {
-                        usesAppZygote = XposedHelpers.callMethod(hr, "usesAppZygote");
-                    } catch (Throwable t) {
-                        return;
-                    }
-                    if (!Boolean.TRUE.equals(usesAppZygote)) return;
+                    if (!isAppZygote(hr)) return;
 
                     String pkg = resolvePackage(pr);
                     if (pkg == null) return;
@@ -59,6 +56,31 @@ public class BindHook {
             Logger.i("BindHook installed on ProcessList.startProcessLocked count=" + n);
         } catch (Throwable t) {
             Logger.e("BindHook install failed", t);
+        }
+    }
+
+    /**
+     * Checks whether the given HostingRecord targets the app zygote.
+     *
+     * AOSP exposes this as usesAppZygote(), which checks mHostingZygote == 2.
+     * Samsung's build removes the method but retains the field and semantics,
+     * confirmed by decompiling framework.jar on this device.
+     * Falls back gracefully if the field is absent on other builds.
+     */
+    private static boolean isAppZygote(Object hostingRecord) {
+        // Try the AOSP method first — works on stock Android and some OEM builds.
+        try {
+            Object result = XposedHelpers.callMethod(hostingRecord, "usesAppZygote");
+            return Boolean.TRUE.equals(result);
+        } catch (Throwable ignored) {
+        }
+        // Fall back to reading mHostingZygote directly — confirmed present on this Samsung build.
+        try {
+            int hostingZygote = XposedHelpers.getIntField(hostingRecord, "mHostingZygote");
+            return hostingZygote == HOSTING_ZYGOTE_APP;
+        } catch (Throwable t) {
+            Logger.e("isAppZygote: could not resolve zygote type from HostingRecord", t);
+            return false;
         }
     }
 
@@ -93,4 +115,4 @@ public class BindHook {
         }
         return denied != null && denied.contains(pkg);
     }
-}
+    }
